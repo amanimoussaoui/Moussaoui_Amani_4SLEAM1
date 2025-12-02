@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  student-management:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: student-management:latest
+    container_name: student-management-app
+    ports:
+      - "8089:8089"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/studentdb?createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SERVER_PORT=8089
+      - SERVER_SERVLET_CONTEXT_PATH=/student
+    depends_on:
+      - mysql
+    restart: unless-stopped
+    networks:
+      - student-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: student-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=studentdb
+      - MYSQL_USER=studentuser
+      - MYSQL_PASSWORD=studentpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - student-network
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: student-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    restart: unless-stopped
+    networks:
+      - student-network
+
+volumes:
+  mysql_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+
+networks:
+  student-network:
+    driver: bridge
+

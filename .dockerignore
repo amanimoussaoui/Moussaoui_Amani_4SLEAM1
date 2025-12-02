@@ -1,0 +1,15 @@
+target/
+.mvn/
+mvnw
+mvnw.cmd
+.git/
+.gitignore
+.idea/
+*.iml
+.vscode/
+README.md
+Jenkinsfile
+Dockerfile
+.dockerignore
+PROJET_COMPLET.md
+
