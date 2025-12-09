@@ -6,6 +6,7 @@ pipeline {
         DOCKER_IMAGE_NAME = 'student-management'
         DOCKER_IMAGE_TAG = "${env.BUILD_NUMBER}"
         DOCKER_REPO = "${DOCKER_USER}/${DOCKER_IMAGE_NAME}"
+        SPRING_PROFILES_ACTIVE = 'test'  # ⬅️ AJOUTER VARIABLE
     }
 
     stages {
@@ -18,12 +19,29 @@ pipeline {
         stage('Setup') {
             steps {
                 sh 'chmod +x mvnw'
+                // Vérifier la configuration
+                sh '''
+                    echo "=== Vérification configuration test ==="
+                    ls -la src/test/resources/ || echo "Dossier test resources non trouvé"
+                    cat src/test/resources/application-test.properties 2>/dev/null || echo "Création du fichier de config..."
+
+                    # Créer si absent
+                    mkdir -p src/test/resources
+                    cat > src/test/resources/application-test.properties << EOF
+                    spring.datasource.url=jdbc:h2:mem:testdb
+                    spring.datasource.driver-class-name=org.h2.Driver
+                    spring.datasource.username=sa
+                    spring.datasource.password=
+                    spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+                    spring.jpa.hibernate.ddl-auto=create-drop
+                    EOF
+                '''
             }
         }
 
         stage('Test') {
             steps {
-                sh './mvnw clean test -Dspring.profiles.active=test'
+                sh "./mvnw clean test -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}"
             }
             post {
                 always {
@@ -35,27 +53,14 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    // Vérifier que SonarQube est accessible
                     sh '''
                         echo "Vérification de SonarQube..."
-                        curl -f http://localhost:9000/api/system/status || echo "SonarQube non accessible"
+                        curl -s -f http://localhost:9000/api/system/status || echo "SonarQube non accessible, attente..."
+                        sleep 30
                     '''
-
-                    // Attendre que SonarQube soit prêt
-                    sleep 30
                 }
-
                 withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        echo "=== Analyse SonarQube ==="
-                        ./mvnw sonar:sonar \
-                          -Dsonar.projectKey=student-management \
-                          -Dsonar.projectName="Student Management" \
-                          -Dsonar.host.url=http://localhost:9000 \
-                          -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                          -Dsonar.java.binaries=target/classes \
-                          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-                    '''
+                    sh "./mvnw sonar:sonar -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}"
                 }
             }
         }
@@ -70,7 +75,7 @@ pipeline {
 
         stage('Package') {
             steps {
-                sh './mvnw package -DskipTests'
+                sh "./mvnw package -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE} -DskipTests"
             }
         }
 
