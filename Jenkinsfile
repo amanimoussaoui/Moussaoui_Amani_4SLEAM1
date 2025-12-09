@@ -6,7 +6,7 @@ pipeline {
         DOCKER_IMAGE_NAME = 'student-management'
         DOCKER_IMAGE_TAG = "${env.BUILD_NUMBER}"
         DOCKER_REPO = "${DOCKER_USER}/${DOCKER_IMAGE_NAME}"
-        SPRING_PROFILES_ACTIVE = 'test'  # ⬅️ AJOUTER VARIABLE
+        SPRING_PROFILES_ACTIVE = 'test'
     }
 
     stages {
@@ -19,14 +19,11 @@ pipeline {
         stage('Setup') {
             steps {
                 sh 'chmod +x mvnw'
-                // Vérifier la configuration
                 sh '''
                     echo "=== Vérification configuration test ==="
-                    ls -la src/test/resources/ || echo "Dossier test resources non trouvé"
-                    cat src/test/resources/application-test.properties 2>/dev/null || echo "Création du fichier de config..."
-
-                    # Créer si absent
+                    ls -la src/test/resources/ 2>/dev/null || echo "Création du dossier..."
                     mkdir -p src/test/resources
+
                     cat > src/test/resources/application-test.properties << EOF
                     spring.datasource.url=jdbc:h2:mem:testdb
                     spring.datasource.driver-class-name=org.h2.Driver
@@ -35,6 +32,9 @@ pipeline {
                     spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
                     spring.jpa.hibernate.ddl-auto=create-drop
                     EOF
+
+                    echo "Fichier de configuration créé:"
+                    cat src/test/resources/application-test.properties
                 '''
             }
         }
@@ -55,7 +55,7 @@ pipeline {
                 script {
                     sh '''
                         echo "Vérification de SonarQube..."
-                        curl -s -f http://localhost:9000/api/system/status || echo "SonarQube non accessible, attente..."
+                        curl -s http://localhost:9000/api/system/status 2>/dev/null || echo "Attente de SonarQube..."
                         sleep 30
                     '''
                 }
